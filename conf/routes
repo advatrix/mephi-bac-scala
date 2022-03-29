@@ -6,5 +6,21 @@
 # An example controller showing a sample home page
 GET     /                           controllers.HomeController.index()
 
+# User data and auth
+
++ nocsrf
+POST    /signup                     controllers.AuthController.signUp()
++ nocsrf
+POST    /login                      controllers.AuthController.login()
++ nocsrf
+POST    /logout                     controllers.AuthController.logout()
+
+GET     /api/get-user-data          controllers.UserController.getUserData
++ nocsrf
+POST    /api/update-user-data       controllers.UserController.updateUserData()
+
+# For testing purposes
+GET     /index                      controllers.UserController.index
+
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)
