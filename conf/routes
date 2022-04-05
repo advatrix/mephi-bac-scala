@@ -19,6 +19,14 @@ GET     /api/get-user-data          controllers.UserController.getUserData
 + nocsrf
 POST    /api/update-user-data       controllers.UserController.updateUserData()
 
+# Notifications
+
+GET     /api/get-notifications-count    controllers.NotificationController.getNotificationsCount
+GET     /api/get-notifications          controllers.NotificationController.getNotifications(offset: Option[Int], limit: Option[Int])
++ nocsrf
+POST    /api/set-notification-read      controllers.NotificationController.setNotificationRead()
+
+
 # For testing purposes
 GET     /index                      controllers.UserController.index
 

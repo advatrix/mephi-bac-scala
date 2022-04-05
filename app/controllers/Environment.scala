@@ -101,9 +101,11 @@ class Environment @Inject() (
     val refreshTokenDuration: Int = 30
 
     val zoneId: ZoneId = ZoneId.of(configuration.underlying.getString("time_zone"))
+    val defaultRoleName: String = "default"
   }
 
   val dummyString = ""
+
 
   // val blockingOpsEc: ExecutionContext = actorSystem.dispatchers.lookup("contexts.blockingOps")
 
@@ -148,9 +150,12 @@ class Environment @Inject() (
     fCheckUserExistence flatMap {
       case (false, false) =>
         val now = currentTimestamp
+        val created = now
+        val updated = now
 
-        val qCreateUser =
-          sql"""
+        val qCreateUser = {
+          val qInsertUser =
+            sql"""
             insert into "user" (
               id,
               username,
@@ -173,13 +178,35 @@ class Environment @Inject() (
               $email,
               $birthDate,
               $password,
-              $now,
-              $now
+              $created,
+              $updated
             )
             returning id
              """.as[UUID].head
 
-        db.run(qCreateUser)
+          qInsertUser flatMap {
+            userId =>
+              sql"""
+                insert into "user_to_role" (
+                  id,
+                  user_id,
+                  role_id,
+                  created,
+                  updated
+                )
+                select
+                  ${UUID.randomUUID},
+                  $userId,
+                  r.id,
+                  $created,
+                  $updated
+                from "role" r
+                where r.name = ${Settings.defaultRoleName}
+                returning user_id
+             """.as[UUID].head
+          }
+        }
+        db.run(qCreateUser.transactionally)
       case (true, true) =>
         Future.failed(UsernameAndEmailAlreadyTakenException)
       case (true, false) =>
@@ -237,9 +264,6 @@ class Environment @Inject() (
           Timestamp.valueOf(currentTimestamp.toLocalDateTime.plusHours(Settings.accessTokenDuration))
         val refreshTokenExpired =
           Timestamp.valueOf(currentTimestamp.toLocalDateTime.plusHours(Settings.refreshTokenDuration))
-
-//        val accessTokenExpired = Date.valueOf(currentDat.plusDays(Settings.accessTokenDuration))
-//        val refreshTokenExpired = Date.valueOf(currentDate.plusDays(Settings.refreshTokenDuration))
 
         val qDeleteSession =
           sqlu"""
