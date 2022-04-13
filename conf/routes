@@ -26,6 +26,14 @@ GET     /api/get-notifications          controllers.NotificationController.getNo
 + nocsrf
 POST    /api/set-notification-read      controllers.NotificationController.setNotificationRead()
 
+# Role model
+
+GET     /api/get-permissions            controllers.RoleController.getPermissions
+
+# Documents
+
+GET     /api/get-documents              controllers.DocumentController.getDocuments
+GET     /api/get-document-by-id         controllers.DocumentController.getDocumentById(id: Int)
 
 # For testing purposes
 GET     /index                      controllers.UserController.index

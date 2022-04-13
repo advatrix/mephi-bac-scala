@@ -1,8 +1,6 @@
 import play.api.libs.json.{JsArray, JsNull, JsObject, JsValue}
 import slick.ast.OptionFold
-
-
-import slick.jdbc.JdbcProfile
+import slick.jdbc.{GetResult, JdbcProfile}
 import slick.jdbc.PostgresProfile.api._
 
 import java.util.UUID
@@ -224,10 +222,19 @@ def selectByTemplate(message: JsValue, template: EntityTemplate) = {
 
   val (columns, conditions) = selectQueryParts
 
+  implicit val resultAsStringMap: AnyRef with GetResult[Map[String, String]] = GetResult[Map[String,String]] ( prs =>
+    (1 to prs.numColumns).map(_ =>
+      prs.rs.getMetaData.getColumnName(prs.currentPos+1) -> prs.nextString
+    ).toMap
+  )
+
+
   val query =
     sql"""
       select #$columns
       from #$tableName
       where $conditions
-       """
+       """.as[Map[String, String]]
+
+
 }

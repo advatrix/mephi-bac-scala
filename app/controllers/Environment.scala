@@ -77,9 +77,9 @@ class Environment @Inject() (
       pp.setObjectOption(v, columnTypes.uuidJdbcType.sqlType)
   }
 
-  implicit val getUUID: GetResult[UUID] = GetResult[UUID](r => r.nextObject.asInstanceOf[UUID])
+  implicit val getUUID: GetResult[UUID] = GetResult[UUID](_.nextObject().asInstanceOf[UUID])
   implicit val getUUIDOption: GetResult[Option[UUID]] =
-    GetResult[Option[UUID]](r => r.nextObject.asInstanceOf[Option[UUID]])
+    GetResult[Option[UUID]](_.nextObject().asInstanceOf[Option[UUID]])
 
   /* TODO: JSON - SQL conversion */
 
@@ -115,6 +115,13 @@ class Environment @Inject() (
       sql"""
         select username from "user"
          """.as[String]
+    }
+
+  def getUserId(username: String): Future[Option[Int]] =
+    db run {
+      sql"""
+        select id from "user" where username = $username
+         """.as[Int].headOption
     }
 
   def currentTimestamp: Timestamp = {
@@ -157,7 +164,6 @@ class Environment @Inject() (
           val qInsertUser =
             sql"""
             insert into "user" (
-              id,
               username,
               first_name,
               middle_name,
@@ -169,7 +175,6 @@ class Environment @Inject() (
               created,
               updated
             ) values (
-              ${UUID.randomUUID},
               $username,
               $firstName,
               $oMiddleName,
@@ -182,7 +187,7 @@ class Environment @Inject() (
               $updated
             )
             returning id
-             """.as[UUID].head
+             """.as[Int].head
 
           qInsertUser flatMap {
             userId =>
@@ -220,8 +225,8 @@ class Environment @Inject() (
     def generateRandomToken(length: Int): String = {
       @tailrec
       def generateRandomTokenRec(n: Int, list: List[Char]): List[Char] =
-        if (n == 1) Random.nextPrintableChar :: list
-        else generateRandomTokenRec(n-1, Random.nextPrintableChar :: list)
+        if (n == 1) Random.nextPrintableChar() :: list
+        else generateRandomTokenRec(n-1, Random.nextPrintableChar() :: list)
 
       generateRandomTokenRec(length, Nil) mkString ""
     }
@@ -242,7 +247,7 @@ class Environment @Inject() (
                 username = $username
                 or email = $email
               ) and password = $password
-               """.as[UUID].headOption
+               """.as[Int].headOption
 
           db run qGetUser map {
             case Some(userId) => userId
@@ -310,7 +315,7 @@ class Environment @Inject() (
     externalAuthorizationService: JsObject => Future[JsObject] = fakeAuthorizationService
   ): Future[JsObject] = externalAuthorizationService(data)
 
-  def logoutUser(userId: UUID): Future[Unit] = {
+  def logoutUser(userId: Int): Future[Unit] = {
     val qLogout =
       sqlu"""
         delete from "session" where user_id = $userId

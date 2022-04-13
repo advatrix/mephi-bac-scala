@@ -12,6 +12,10 @@ libraryDependencies += "org.scalatestplus.play" %% "scalatestplus-play" % "5.1.0
 libraryDependencies += "com.typesafe.play" %% "play-slick" % "5.0.0"
 libraryDependencies += "org.postgresql" % "postgresql" % "42.3.3"
 
+libraryDependencies ++= Seq (
+  "com.chuusai" %% "shapeless" % "2.3.3"
+)
+
 // Adds additional packages into Twirl
 //TwirlKeys.templateImports += "com.example.controllers._"
 

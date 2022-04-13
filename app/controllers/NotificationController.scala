@@ -67,6 +67,7 @@ class NotificationController @Inject() (
       val qNotifications =
         sql"""
           select
+            n.id,
             n.title,
             n.text,
             n.date,
@@ -77,7 +78,7 @@ class NotificationController @Inject() (
           order by n.date desc
           offset $offset
           limit $limit
-           """.as[(String, String, Date, Boolean)]
+           """.as[(Int, String, String, Date, Boolean)]
 
       db run qNotifications
     }
@@ -87,11 +88,12 @@ class NotificationController @Inject() (
     } yield Ok {
       Json.toJson {
         notifications map {
-          case (title, text, date, isRead) =>
+          case (id, title, text, date, isRead) =>
             Json.obj (
+              "id" -> id,
               "title" -> title,
               "text" -> text,
-              "date" -> date,
+              "date" -> date.toLocalDate,
               "is_read" -> isRead
             )
         }

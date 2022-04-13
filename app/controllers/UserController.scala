@@ -114,7 +114,7 @@ class UserController @Inject() (
               updated = $updated
             where id = $userId
             returning id
-             """.as[UUID].head
+             """.as[Int].head
 
         db.run(qUpdateUserData)
     }
