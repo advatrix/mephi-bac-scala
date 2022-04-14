@@ -1,7 +1,7 @@
 package controllers
 
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 import slick.jdbc.JdbcProfile
 import slick.jdbc.PostgresProfile.api._
@@ -27,6 +27,15 @@ class DocumentController @Inject() (
   case object ChangeStatus extends DocumentAction
 
   type DocumentId = Int
+
+  object DocumentStatus {
+    val Init: String = "init"
+    val Editing: String = "editing"
+    val Pending: String = "pending"
+    val Rejected: String = "rejected"
+    val Accepted: String = "accepted"
+    val Closed: String = "closed"
+  }
 
   def fCheckDocumentPermission(userId: Int, documentId: DocumentId, action: DocumentAction): Future[Boolean] = {
     val qDocumentPermissionsToUser =
@@ -155,6 +164,97 @@ class DocumentController @Inject() (
     }
   }
 
+  def fGetDocumentTemplate(name: String): Future[(Int, String)] = {
+    val qGetDocumentTemplate =
+      sql"""
+        select id, template from document_template where name = $name
+         """.as[(Int, String)].headOption
 
+    db run qGetDocumentTemplate
+  }
+
+  def fGetDocumentContext(userId: Int): Future[DocumentContext] = {
+    val qGetDocumentContext =
+      sql"""
+        select
+          username,
+          email,
+          first_name,
+          middle_name,
+          last_name
+        from "user"
+        where id = $userId
+         """.as[(String, String, String, Option[String], String)].head
+
+    db run qGetDocumentContext map {
+      case (username, email, firstName, oMiddleName, lastName) =>
+        DocumentContext(username, email, firstName, oMiddleName, lastName)
+    }
+  }
+
+  def fCreateDocument(userId: Int, templateId: Int): Future[Int] = {
+    val qCreateDocument =
+      sql"""
+        insert into "document" (
+          template_id,
+          user_id,
+          status_id,
+          created,
+          updated
+        )
+        select
+          $templateId,
+          $userId,
+          s.id,
+          $currentTimestamp,
+          $currentTimestamp
+        from "status" s
+        where s.name = ${DocumentStatus.Init}
+        returning id
+         """.as[Int].head
+
+    db run qCreateDocument
+  }
+
+  def fSaveDocument(userId: Int, documentId: Int, contents: JsObject): Future[Int] = {
+    val qSaveDocument =
+      sqlu"""
+        update "document" d
+        set
+          contents = ${contents.toString},
+          status_id = s.id,
+          updated = $currentTimestamp
+        from (
+          select id from status where name = ${DocumentStatus.Editing}
+        ) s
+        where d.id = $documentId and d.user_id = $userId
+         """
+
+    db run qSaveDocument
+  }
+
+  def createDocument(name: String): Action[AnyContent] = securedAction async { implicit request =>
+    val userId = request.userId
+
+    val fResult = for {
+      (templateId, template) <- fGetDocumentTemplate(name)
+      context <- fGetDocumentContext(userId)
+      document = DocumentTemplateProcessor.createEmptyDocument(template, context)
+      id <- fCreateDocument(userId, templateId)
+      _ <- fSaveDocument(userId, id, document)
+    } yield Ok {
+      Json.obj(
+        "id" -> id,
+        "contents" -> document
+      )
+    } as JSON
+
+    fResult recover {
+      case ex: SQLException =>
+        InternalServerError(ex.toString)
+      case ex =>
+        BadRequest(ex.toString)
+    }
+  }
 
 }

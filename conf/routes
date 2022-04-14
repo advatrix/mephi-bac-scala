@@ -34,6 +34,7 @@ GET     /api/get-permissions            controllers.RoleController.getPermission
 
 GET     /api/get-documents              controllers.DocumentController.getDocuments
 GET     /api/get-document-by-id         controllers.DocumentController.getDocumentById(id: Int)
+GET     /api/create-document            controllers.DocumentController.createDocument(name: String)
 
 # For testing purposes
 GET     /index                      controllers.UserController.index
