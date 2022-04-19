@@ -1,6 +1,8 @@
 package controllers
 
 import play.api.libs.json._
+
+import scala.language.implicitConversions
 import scala.util.parsing.combinator._
 
 object DocumentParsing {
@@ -14,23 +16,23 @@ object DocumentParsing {
   case object Curly extends BracketType
 
   sealed trait BinOp
-  case object Plus extends BinOp
-  case object Minus extends BinOp
-  case object Multiply extends BinOp
-  case object Divide extends BinOp
-  case object Equal extends BinOp
-  case object NonEqual extends BinOp
-  case object Greater extends BinOp
-  case object Less extends BinOp
-  case object GreaterOrEqual extends BinOp
-  case object LessOrEqual extends BinOp
-  case object In extends BinOp
-  case object NotIn extends BinOp
-  case object Contains extends BinOp
-  case object NotContains extends BinOp
+  case object Plus           extends BinOp { override def toString: String = "+" }
+  case object Minus          extends BinOp { override def toString: String = "-" }
+  case object Multiply       extends BinOp { override def toString: String = "*" }
+  case object Divide         extends BinOp { override def toString: String = "/" }
+  case object Equal          extends BinOp { override def toString: String = "==" }
+  case object NonEqual       extends BinOp { override def toString: String = "!=" }
+  case object Greater        extends BinOp { override def toString: String = ">" }
+  case object Less           extends BinOp { override def toString: String = "<" }
+  case object GreaterOrEqual extends BinOp { override def toString: String = ">=" }
+  case object LessOrEqual    extends BinOp { override def toString: String = "<=" }
+  case object In             extends BinOp { override def toString: String = "in" }
+  case object NotIn          extends BinOp { override def toString: String = "not in" }
+  case object Contains       extends BinOp { override def toString: String = "contains" }
+  case object NotContains    extends BinOp { override def toString: String = "not contains" }
   sealed trait LogicBinOp extends BinOp
-  case object And extends LogicBinOp
-  case object Or extends LogicBinOp
+  case object And extends LogicBinOp { override def toString: String = "and" }
+  case object Or extends LogicBinOp { override def toString: String = "or" }
 
   import UnitType.UnitType
 
@@ -43,11 +45,29 @@ object DocumentParsing {
   case class DocumentKeywordEvaluationException(op: String, ops: Any*) extends Exception {
     override def toString: String = s"Keyword $op is not supported with ${ops.mkString}"
   }
+  case class DocumentValidationException(errors: Seq[DocumentValidationError]) extends Exception {
+    override def toString: String = s"Errors: \n${errors mkString "\n"}"
+  }
+
+  sealed trait DocumentValidationError
+  case class DocumentRequiredFieldNotFound(field: String) extends DocumentValidationError {
+    override def toString: String = s"Required field $field not found"
+  }
+  case class DocumentWrongFieldType(field: String, expectedType: String) extends DocumentValidationError {
+    override def toString: String = s"Field $field is of wrong type, expected type $expectedType"
+  }
+  case class DocumentFieldLimitNotMet(field: String, limit: String) extends DocumentValidationError {
+    override def toString: String = s"Field $field limit $limit is not met"
+  }
+
 
   sealed trait Expression
-  case class BinaryOperation(left: Expression, operator: BinOp, right: Expression) extends Expression
+  case class BinaryOperation(left: Expression, operator: BinOp, right: Expression) extends Expression {
+    override def toString: String = s"$left $operator $right"
+  }
   case class Variable(path: List[String]) extends Expression   // refers to document field value
   sealed abstract class Value(val value: Any) extends Expression {
+    override def toString: String = value.toString
     def ==(that: Value): BooleanUnitValue = BooleanUnitValue(this.value == that.value)
     def +(that: Value): Value
     def -(that: Value): Value
@@ -72,6 +92,7 @@ object DocumentParsing {
     def >=(that: Value): BooleanUnitValue = (this > that) or (this == that)
     def in(that: Value): BooleanUnitValue = that match {
       case Array(values) => BooleanUnitValue(values contains this)
+      case _ => throw DocumentExpressionEvaluationException("in", this, that)
     }
     def notIn(that: Value): BooleanUnitValue = (this in that).not
     def contains(that: Value): BooleanUnitValue = that in this
@@ -117,22 +138,22 @@ object DocumentParsing {
       case _ => throw DocumentExpressionEvaluationException("+", this, that)
     }
     override def -(that: Value): FloatUnitValue = that match {
-      case t: IntUnitValue => FloatUnitValue(this.value + t.value)
-      case t: FloatUnitValue => FloatUnitValue(this.value + t.value)
-      case t: BooleanUnitValue => FloatUnitValue(this.value + (if (t.value) 1F else 0F))
-      case _ => throw DocumentExpressionEvaluationException("+", this, that)
+      case t: IntUnitValue => FloatUnitValue(this.value - t.value)
+      case t: FloatUnitValue => FloatUnitValue(this.value - t.value)
+      case t: BooleanUnitValue => FloatUnitValue(this.value - (if (t.value) 1F else 0F))
+      case _ => throw DocumentExpressionEvaluationException("-", this, that)
     }
     override def *(that: Value): FloatUnitValue = that match {
-      case t: IntUnitValue => FloatUnitValue(this.value + t.value)
-      case t: FloatUnitValue => FloatUnitValue(this.value + t.value)
-      case t: BooleanUnitValue => FloatUnitValue(this.value + (if (t.value) 1F else 0F))
-      case _ => throw DocumentExpressionEvaluationException("+", this, that)
+      case t: IntUnitValue => FloatUnitValue(this.value * t.value)
+      case t: FloatUnitValue => FloatUnitValue(this.value * t.value)
+      case t: BooleanUnitValue => FloatUnitValue(this.value * (if (t.value) 1F else 0F))
+      case _ => throw DocumentExpressionEvaluationException("*", this, that)
     }
     override def /(that: Value): FloatUnitValue = that match {
-      case t: IntUnitValue => FloatUnitValue(this.value + t.value)
-      case t: FloatUnitValue => FloatUnitValue(this.value + t.value)
-      case t: BooleanUnitValue => FloatUnitValue(this.value + (if (t.value) 1F else 0F))
-      case _ => throw DocumentExpressionEvaluationException("+", this, that)
+      case t: IntUnitValue => FloatUnitValue(this.value / t.value)
+      case t: FloatUnitValue => FloatUnitValue(this.value / t.value)
+      case t: BooleanUnitValue => FloatUnitValue(this.value / (if (t.value) 1F else 0F))
+      case _ => throw DocumentExpressionEvaluationException("/", this, that)
     }
     override def <(that: Value): BooleanUnitValue = that match {
       case t: IntUnitValue => BooleanUnitValue(this.value < t.value)
@@ -181,7 +202,9 @@ object DocumentParsing {
       case _ => throw DocumentExpressionEvaluationException("in", this, that)
     }
   }
+
   case object Empty extends Value {
+    override def toString: String = "()"
     override def +(that: Value): Value = that
     override def -(that: Value): Value = that
     override def *(that: Value): Value = throw DocumentExpressionEvaluationException("*", this, that)
@@ -190,20 +213,24 @@ object DocumentParsing {
     override def in(that: Value): BooleanUnitValue = BooleanUnitValue(true)
   }
 
+  implicit def BooleanUnitValueToBoolean(value: Value): Boolean = value.toBooleanUnitValue.value
+  implicit def BooleanToBooleanUnitValue(bool: Boolean): BooleanUnitValue = BooleanUnitValue(bool)
+
   sealed trait PredefinedConstant extends Expression
-  case object Username extends PredefinedConstant
-  case object Length extends PredefinedConstant
-  case object Self extends PredefinedConstant
+  case object Username extends PredefinedConstant { override def toString: String = "username" }
+  case object Length extends PredefinedConstant { override def toString: String = "length" }
+  case object Self extends PredefinedConstant { override def toString: String = "_" }
 
   sealed trait FieldSettings
   case class UnitFieldSettings(default: Option[Expression], limits: List[Expression])
-  case class ArrayFieldSettings(elements: List[Field], limits: List[Expression])
+  case class ArrayFieldSettings(default: Option[Expression], limits: List[Expression])
   case class ObjectFieldSettings(properties: List[Field])
 
-  sealed trait Field
-  case class UnitField(name: String, fieldType: UnitType.UnitType, required: Boolean, settings: Option[UnitFieldSettings]) extends Field
-  case class ArrayField(name: String, required: Boolean, settings: Option[ArrayFieldSettings]) extends Field
-  case class ObjectField(name: String, required: Boolean, settings: Option[ObjectFieldSettings]) extends Field
+  sealed trait Field { val name: Option[String] }
+  // name is None if field is element of array
+  case class UnitField(name: Option[String], fieldType: UnitType.UnitType, required: Boolean, settings: Option[UnitFieldSettings]) extends Field
+  case class ArrayField(name: Option[String], required: Boolean, settings: Option[ArrayFieldSettings], elements: Option[Field]) extends Field
+  case class ObjectField(name: Option[String], required: Boolean, settings: Option[ObjectFieldSettings]) extends Field
 
   case class Template(name: String, fields: List[Field])
 }
@@ -234,12 +261,12 @@ class DocumentParser extends JavaTokenParsers with PackratParsers {
     ) ^^ {
     case name~fieldDefinition =>
       fieldDefinition match {
-        case "array"~(oRequired: Option[String])~(oArrayFieldSettings: Option[ArrayFieldSettings]) =>
-          ArrayField(name, oRequired.nonEmpty, oArrayFieldSettings)
+        case "array"~(oElement: Option[Field])~(oRequired: Option[String])~(oArrayFieldSettings: Option[ArrayFieldSettings]) =>
+          ArrayField(Some(name), oRequired.nonEmpty, oArrayFieldSettings, oElement)
         case "object"~(oRequired: Option[String])~(oObjectFieldSettings: Option[ObjectFieldSettings]) =>
-          ObjectField(name, oRequired.nonEmpty, oObjectFieldSettings)
+          ObjectField(Some(name), oRequired.nonEmpty, oObjectFieldSettings)
         case (fieldType: UnitType)~(oRequired: Option[String])~(oUnitFieldSettings: Option[UnitFieldSettings]) =>
-          UnitField(name, fieldType, oRequired.nonEmpty, oUnitFieldSettings)
+          UnitField(Some(name), fieldType, oRequired.nonEmpty, oUnitFieldSettings)
         case _ =>
           throw DocumentParsingException(s"$name field is defined wrong")
       }
@@ -247,8 +274,8 @@ class DocumentParser extends JavaTokenParsers with PackratParsers {
 
   def fieldName: Parser[String] = "\""~>"[a-zA-Z0-9а-яА-Я_]+".r<~"\""
 
-  def arrayFieldDefinition: Parser[String ~ Option[String] ~ Option[ArrayFieldSettings]] =
-    "array"~opt(Required)~opt(arrayFieldSettings)
+  lazy val arrayFieldDefinition: PackratParser[String ~ Option[Field] ~ Option[String] ~ Option[ArrayFieldSettings]] =
+    "array"~opt(arrayElements)~opt(Required)~opt(arrayFieldSettings)
 
   def objectFieldDefinition: Parser[String ~ Option[String] ~ Option[ObjectFieldSettings]] =
     "object"~opt(Required)~opt(objectFieldSettings)
@@ -263,12 +290,25 @@ class DocumentParser extends JavaTokenParsers with PackratParsers {
   def booleanUnitType: Parser[UnitType] = "boolean" ^^ (_ => UnitType.Boolean)
   def stringUnitType: Parser[UnitType] = "string" ^^ (_ => UnitType.String)
 
-  lazy val arrayFieldSettings: PackratParser[ArrayFieldSettings] = oBracket~repsep(field, ",")~opt(","~limits)~cBracket ^^ {
-    case oBracket~elements~oLimits~cBracket if oBracket == cBracket =>
+  lazy val arrayFieldSettings: PackratParser[ArrayFieldSettings] = oBracket~opt(default)~opt(","~limits)~cBracket ^^ {
+    case oBracket~oDefault~oLimits~cBracket if oBracket == cBracket =>
       val limits = getRightParser(oLimits) getOrElse List.empty[Expression]
-      ArrayFieldSettings(elements, limits)
+      ArrayFieldSettings(oDefault, limits)
     case _ =>
       throw DocumentParsingException(s"in array field brackets don\'t match: $oBracket and $cBracket")
+  }
+
+  lazy val arrayElements: PackratParser[Field] = " of "~>(
+    arrayFieldDefinition | objectFieldDefinition | unitFieldDefinition
+  ) ^^ {
+    case "array"~(oElement: Option[Field])~(oRequired: Option[String])~(oArrayFieldSettings: Option[ArrayFieldSettings]) =>
+      ArrayField(None, oRequired.nonEmpty, oArrayFieldSettings, oElement)
+    case "object"~(oRequired: Option[String])~(oObjectFieldSettings: Option[ObjectFieldSettings]) =>
+      ObjectField(None, oRequired.nonEmpty, oObjectFieldSettings)
+    case (fieldType: UnitType)~(oRequired: Option[String])~(oUnitFieldSettings: Option[UnitFieldSettings]) =>
+      UnitField(None, fieldType, oRequired.nonEmpty, oUnitFieldSettings)
+    case _ =>
+      throw DocumentParsingException(s"array element is defined wrong")
   }
 
   def unitFieldSettings: Parser[UnitFieldSettings] = oBracket~opt(default)~opt(","~limits)~cBracket ^^ {
@@ -393,7 +433,7 @@ object DocumentTemplateProcessor {
           case Some(UnitFieldSettings(oDefault, _)) => eval(oDefault getOrElse Empty)
           case None => Empty
         }
-        Map(name -> valueToJsValue(default))
+        Map(name.get -> valueToJsValue(default))
       case ObjectField(name, _, oSettings) =>
         val default = oSettings match {
           case Some(ObjectFieldSettings(properties)) =>
@@ -401,23 +441,203 @@ object DocumentTemplateProcessor {
           case None =>
             JsNull
         }
-        Map(name -> default)
-      case ArrayField(name, required, oSettings) =>
+        Map(name.get -> default)
+      case ArrayField(name, required, oSettings, _) =>
         val default = oSettings match {
-          case Some(ArrayFieldSettings(elements, _)) =>
-            Json.arr(elements map createJsField)
+          case Some(ArrayFieldSettings(oDefault, _)) =>
+            oDefault match {
+              case Some(defaultValue) => Json.toJson(valueToJsValue(eval(defaultValue)))
+              case None => JsNull
+            }
           case None => if (required) Json.arr() else JsNull
         }
-        Map(name -> default)
+        Map(name.get -> default)
     }
 
     val docFields = parsedTemplate.fields map createJsField reduce (_ ++ _)
     Json.toJson(docFields).as[JsObject]
   }
 
-  private def eval(expression: Expression)(
-    implicit context: DocumentContext, document: JsObject = Json.obj(), self: JsValue = JsNull, field: Option[Field] = None
-  ): Value = expression match {
+  def validateDocument(document: JsObject, template: String, context: DocumentContext): Seq[DocumentValidationError] = {
+    val parsedTemplate = Parser.parse(template)
+    implicit val ctx: DocumentContext = context
+
+    def validateArrayValue(field: Field, name: String, value: JsArray): Seq[DocumentValidationError] = {
+      implicit val self: JsValue = value
+
+      field match {
+        case UnitField(_, fieldType, required, oSettings) =>
+          val values = value.value
+
+          val typeErrors = fieldType match {
+            case UnitType.Int =>
+              values collect {
+                case v if v.asOpt[Int].isEmpty => DocumentWrongFieldType(v.toString, "int")
+              }
+            case UnitType.String =>
+              values collect {
+                case v if v.asOpt[String].isEmpty => DocumentWrongFieldType(v.toString, "string")
+              }
+            case UnitType.Boolean =>
+              values collect {
+                case v if v.asOpt[Boolean].isEmpty => DocumentWrongFieldType(v.toString, "boolean")
+              }
+            case UnitType.Float =>
+              values.collect {
+                case v if v.asOpt[Float].isEmpty => DocumentWrongFieldType(v.toString, "float")
+              }
+          }
+
+          val limitErrors = oSettings match {
+            case Some(settings) =>
+              settings.limits collect {
+                case limit if !values.map(v => eval(limit)).forall(x => x) =>
+                  DocumentFieldLimitNotMet(name, limit.toString)
+              }
+            case None => Nil
+          }
+
+          val requiredError =
+            if (required && values.isEmpty) Seq(DocumentRequiredFieldNotFound("array field"))
+            else Nil
+
+          typeErrors.toSeq ++ limitErrors ++ requiredError
+
+        case ObjectField(_, required, oObjectFields) =>
+          val values = value.value
+
+          val typeErrors = values.collect {
+            case v if v.asOpt[JsObject].isEmpty => DocumentWrongFieldType(v.toString, "object")
+          }.toSeq
+
+          val fieldErrors = if (typeErrors.isEmpty) {
+            oObjectFields match {
+              case Some(objectFields) =>
+                objectFields.properties flatMap {
+                  field =>
+                    values
+                      .map(_.as[JsObject])
+                      .map(_.value.toMap)
+                      .flatMap(validateField(field, _))
+                }
+              case None => Nil
+            }
+          } else Nil
+          val requiredError = {
+            if (required && values.isEmpty) Seq(DocumentRequiredFieldNotFound("array field"))
+            else Nil
+          }
+          typeErrors ++ fieldErrors ++ requiredError
+
+        case ArrayField(_, required, oSettings, oElements) =>
+          val values = value.value
+
+          val typeError = values.collect {
+            case v if v.asOpt[JsArray].isEmpty => DocumentWrongFieldType(v.toString, "array")
+          }.toSeq
+
+          val requiredError =
+            if (required && values.isEmpty) Seq(DocumentRequiredFieldNotFound("array field"))
+            else Nil
+
+          val limitErrors = oSettings match {
+            case Some(settings) =>
+              settings.limits.collect {
+                case limit if !eval(limit) =>
+                  DocumentFieldLimitNotMet(s"array value $value", limit.toString)
+              }
+            case None => Nil
+          }
+
+          val elementsErrors = oElements match {
+            case Some(elementDescription) =>
+              values
+                .map(_.as[JsArray])
+                .flatMap(validateArrayValue(elementDescription, name + ".", _))
+            case None => Nil
+          }
+
+          typeError ++ requiredError ++ limitErrors ++ elementsErrors
+      }
+    }
+
+    def validateField(field: Field, jsFields: Map[String, JsValue]): Seq[DocumentValidationError] = field match {
+      case UnitField(oName, fieldType, required, oSettings) =>
+        val name = oName.get
+        jsFields get name match {
+          case Some(jsField) =>
+            val typeChecked = fieldType match {
+              case UnitType.Int => jsField.asOpt[Int].nonEmpty
+              case UnitType.String => jsField.asOpt[String].nonEmpty
+              case UnitType.Float => jsField.asOpt[Float].nonEmpty
+              case UnitType.Boolean => jsField.asOpt[Boolean].nonEmpty
+            }
+
+            implicit val self: JsValue = jsField
+
+            val typeError =
+              if (typeChecked) Nil
+              else Seq(DocumentWrongFieldType(name, fieldType.toString))
+
+            val limitsErrors = oSettings match {
+              case Some(settings) =>
+                settings.limits collect {
+                  case limit if !eval(limit) => DocumentFieldLimitNotMet(name, limit.toString)
+                }
+              case None => Nil
+            }
+
+            typeError ++ limitsErrors
+          case None =>
+            if (required) Seq(DocumentRequiredFieldNotFound(name))
+            else Nil
+        }
+      case ObjectField(oName, required, oObjectFields) =>
+        val name = oName.get
+
+        jsFields get name match {
+          case Some(jsField) =>
+            val jsObject = jsField.as[JsObject]
+            oObjectFields match {
+              case Some(fields) => fields.properties.flatMap(validateField(_, jsObject.value.toMap))
+              case None => Nil
+            }
+          case None =>
+            if (required) Seq(DocumentRequiredFieldNotFound(name))
+            else Nil
+        }
+      case ArrayField(oName, required, oSettings, oFields) =>
+        val name = oName.get
+        jsFields get name match {
+          case Some(jsField) =>
+            val jsArray = jsField.as[JsArray]
+            implicit val self: JsValue = jsArray
+            oSettings match {
+              case Some(settings) =>
+                val limitsErrors = settings.limits collect {
+                  case limit if !eval(limit) => DocumentFieldLimitNotMet(name, limit.toString)
+                }
+                val elementsErrors = oFields match {
+                  case Some(elements) => validateArrayValue(elements, name, jsArray)
+                  case None => Nil
+                }
+                limitsErrors ++ elementsErrors
+              case None => Nil
+            }
+          case None =>
+            if (required) Seq(DocumentRequiredFieldNotFound(name))
+            else Nil
+        }
+    }
+
+    parsedTemplate.fields.flatMap(validateField(_, document.value.toMap))
+  }
+
+  private def eval(
+    expression: Expression,
+    document: JsObject = Json.obj(),
+    field: Option[Field] = None
+  )(implicit context: DocumentContext, self: JsValue = JsNull): Value = expression match {
     case v: Value => v
     case pc: PredefinedConstant =>
       pc match {
@@ -431,10 +651,28 @@ object DocumentTemplateProcessor {
         case Self =>
           self match {
             case JsString(value) => StringUnitValue(value)
-            case JsNumber(value) => field.asInstanceOf[UnitField].fieldType match {
-              case UnitType.Int => IntUnitValue(value.toInt)
-              case UnitType.Float => FloatUnitValue(value.toFloat)
-              case _ => throw new Exception(s"could not cast self $self to number")
+            case JsNumber(value) => field match {
+              case Some(f) =>
+                f match {
+                  case UnitField(_, fieldType, _, _) =>
+                    fieldType match {
+                      case UnitType.Int => IntUnitValue(value.toInt)
+                      case UnitType.Float => FloatUnitValue(value.toFloat)
+                      case _ =>
+                        throw new Exception(s"could not cast self $self to number: unit field is of type $fieldType")
+                    }
+                  case _ => throw new Exception(s"could not cast self $self to number: field type is not unit ($f)")
+                }
+              case None =>
+                self.asOpt[Int] match {
+                  case Some(intValue) => IntUnitValue(intValue)
+                  case None =>
+                    self.asOpt[Float] match {
+                      case Some(floatValue) => FloatUnitValue(floatValue)
+                      case None =>
+                        throw new Exception(s"could not cast $self to any number; field description is not provided")
+                    }
+                }
             }
           }
       }

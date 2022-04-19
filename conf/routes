@@ -34,10 +34,30 @@ GET     /api/get-permissions            controllers.RoleController.getPermission
 
 GET     /api/get-documents              controllers.DocumentController.getDocuments
 GET     /api/get-document-by-id         controllers.DocumentController.getDocumentById(id: Int)
-GET     /api/create-document            controllers.DocumentController.createDocument(name: String)
++ nocsrf
+POST    /api/create-document            controllers.DocumentController.createDocument
++ nocsrf
+POST    /api/save-document              controllers.DocumentController.saveDocument
++ nocsrf
+POST    /api/send-document              controllers.DocumentController.sendDocument
++ nocsrf
+POST    /api/approve-document           controllers.DocumentController.approveDocument
++ nocsrf
+POST    /api/reject-document            controllers.DocumentController.rejectDocument
+
+# Data synchronization
+
++ nocsrf
+POST    /sync/insert                    controllers.DataSyncController.insert
++ nocsrf
+POST    /sync/update                    controllers.DataSyncController.update
++ nocsrf
+POST    /sync/write                     controllers.DataSyncController.write
+GET     /sync/read                      controllers.DataSyncController.read
 
 # For testing purposes
 GET     /index                      controllers.UserController.index
+GET     /test/validate-document         controllers.DocumentController.fValidateDocument
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)
