@@ -1,0 +1,221 @@
+{
+	"info": {
+		"_postman_id": "d4f14b8b-7830-4e8a-86dc-8952dfd3d1bb",
+		"name": "Data sync Copy",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Insert",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer sync_token",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"header\": \"news\",\r\n    \"message\": {\r\n        \"id\": \"2f8ef23c-a7f7-4d7f-9437-a86b2ffbb4b3\",\r\n        \"name\": \"Название новости\",\r\n        \"title\": \"Заголовок новости\",\r\n        \"description\": \"Описание новости\",\r\n        \"body\": \"Содержание новости\",\r\n        \"date\": \"2022-05-01\"\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:9000/sync/insert",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"sync",
+						"insert"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Read",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"const json = pm.response.json();\r",
+							"\r",
+							"pm.test(\"Body is correct\", () => {\r",
+							"    const firstNews = json[0];\r",
+							"    pm.expect(firstNews).to.be.an(\"object\");\r",
+							"    pm.expect(firstNews.body).to.eql(\"Содержание новости\");\r",
+							"    pm.expect(firstNews.priority).to.eql(null);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer sync_token",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"header\": \"news\",\r\n    \"message\": {\r\n        \"id\": \"2f8ef23c-a7f7-4d7f-9437-a86b2ffbb4b3\",\r\n        \"name\": \"Название новости\"\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:9000/sync/read",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"sync",
+						"read"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer sync_token",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"header\": \"news\",\r\n    \"message\": {\r\n        \"id\": \"2f8ef23c-a7f7-4d7f-9437-a86b2ffbb4b3\",\r\n        \"name\": \"Название новости\",\r\n        \"title\": \"Заголовок новости измененный\",\r\n        \"description\": \"Описание новости\",\r\n        \"body\": \"Содержание новости измененное\",\r\n        \"date\": \"2022-05-01\"\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:9000/sync/update",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"sync",
+						"update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Read after update",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"const json = pm.response.json();\r",
+							"\r",
+							"pm.test(\"Body is correct\", () => {\r",
+							"    const firstNews = json[0];\r",
+							"    pm.expect(firstNews).to.be.an(\"object\");\r",
+							"    pm.expect(firstNews.body).to.eql(\"Содержание новости измененное\");\r",
+							"    pm.expect(firstNews.priority).to.eql(null);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer sync_token",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"header\": \"news\",\r\n    \"message\": {\r\n        \"id\": \"2f8ef23c-a7f7-4d7f-9437-a86b2ffbb4b3\",\r\n        \"name\": \"Название новости\"\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:9000/sync/read",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"sync",
+						"read"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

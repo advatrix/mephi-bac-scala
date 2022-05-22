@@ -1,0 +1,442 @@
+{
+	"info": {
+		"_postman_id": "6c1c1e92-3991-4535-bbb7-9e6d136d8ed2",
+		"name": "Exam",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Get exam schedule",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"const json = pm.response.json();\r",
+							"const groupExams = json[0];\r",
+							"\r",
+							"pm.test(\"exams of correct group\", () => {\r",
+							"    pm.expect(groupExams.group).to.eql(\"Б18-513\");\r",
+							"});\r",
+							"\r",
+							"const subjectExams = groupExams.exams[0];\r",
+							"\r",
+							"pm.test(\"Found math exams\", () => {\r",
+							"    pm.expect(subjectExams.subject).to.eql(\"Математический анализ\");\r",
+							"})\r",
+							"\r",
+							"pm.test(\"2 exams found\", () => {\r",
+							"    pm.expect(Object.keys(subjectExams.exams).length).to.eql(2);\r",
+							"})\r",
+							"\r",
+							"const firstExam = subjectExams.exams[0];\r",
+							"const secondExam = subjectExams.exams[1];\r",
+							"\r",
+							"pm.collectionVariables.set(\"first_exam_id\", firstExam.id);\r",
+							"pm.collectionVariables.set(\"second_exam_id\", secondExam.id)"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer test_exam_user",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "localhost:9000/api/get-exam-schedule",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"api",
+						"get-exam-schedule"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Set first exam schedule",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"const json = pm.response.json();\r",
+							"\r",
+							"pm.collectionVariables.set(\r",
+							"    \"user_to_exam_schedule\", json.user_to_exam_schedule_id\r",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer test_exam_user",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"exam_schedule_id\": {{first_exam_id}}\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:9000/api/set-exam-schedule",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"api",
+						"set-exam-schedule"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Set second exam schedule",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(400);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer test_exam_user",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"exam_schedule_id\": {{second_exam_id}}\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:9000/api/set-exam-schedule",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"api",
+						"set-exam-schedule"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete first exam schedule",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer test_exam_user",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"user_to_exam_schedule_id\": {{user_to_exam_schedule}}\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:9000/api/delete-exam-schedule",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"api",
+						"delete-exam-schedule"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Set second exam schedule again",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"const json = pm.response.json();\r",
+							"\r",
+							"pm.collectionVariables.set(\r",
+							"    \"user_to_exam_schedule\", json.user_to_exam_schedule_id\r",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer test_exam_user",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"exam_schedule_id\": {{second_exam_id}}\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:9000/api/set-exam-schedule",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"api",
+						"set-exam-schedule"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get examiner schedule",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"const json = pm.response.json();\r",
+							"\r",
+							"pm.test(\"two exams found\", () => {\r",
+							"    pm.expect(Object.keys(json).length).to.eql(2);\r",
+							"});\r",
+							"\r",
+							"const secondExamId =\r",
+							"    pm.collectionVariables.get(\"second_exam_id\");\r",
+							"const secondExam = json.find(m => m.exam_schedule_id == secondExamId);\r",
+							"const utesId = \r",
+							"    pm.collectionVariables.get(\"user_to_exam_schedule\")\r",
+							"\r",
+							"pm.test(\"Test user is present among students for the second exam\", () => {\r",
+							"    const utes = secondExam.students.find(\r",
+							"        s => s.user_to_exam_schedule_id == utesId\r",
+							"    );\r",
+							"    pm.expect(utes).to.be.an(\"object\");\r",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer test_tutor_user",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "localhost:9000/api/get-examiner-schedule",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"api",
+						"get-examiner-schedule"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Set exam result",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer test_tutor_user",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"tutor_id\": 2,\r\n    \"user_to_exam_schedule_id\": {{user_to_exam_schedule}},\r\n    \"result\": 36,\r\n    \"comment\": \"хорошо, но можно и лучше\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:9000/api/set-exam-result",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"api",
+						"set-exam-result"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get exam result",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"const json = pm.response.json();\r",
+							"\r",
+							"pm.test(\"One result found\", () => {\r",
+							"    pm.expect(Object.keys(json).length).to.eql(1);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Result is correct\", () => {\r",
+							"    pm.expect(json[0].result_points).to.eql(36);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Examiner is correct\", () => {\r",
+							"    pm.expect(json[0].examiner.first_name).to.eql(\"Петров\");\r",
+							"})\r",
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer test_exam_user",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "localhost:9000/api/get-exam-result",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"api",
+						"get-exam-result"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "first_exam_id",
+			"value": ""
+		},
+		{
+			"key": "second_exam_id",
+			"value": ""
+		},
+		{
+			"key": "user_to_exam_schedule",
+			"value": ""
+		}
+	]
+}
