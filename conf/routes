@@ -35,24 +35,37 @@ GET     /api/get-permissions            controllers.RoleController.getPermission
 GET     /api/get-documents              controllers.DocumentController.getDocuments
 GET     /api/get-document-by-id         controllers.DocumentController.getDocumentById(id: Int)
 + nocsrf
-POST    /api/create-document            controllers.DocumentController.createDocument
+POST    /api/create-document            controllers.DocumentController.createDocument()
 + nocsrf
-POST    /api/save-document              controllers.DocumentController.saveDocument
+POST    /api/save-document              controllers.DocumentController.saveDocument()
 + nocsrf
-POST    /api/send-document              controllers.DocumentController.sendDocument
+POST    /api/send-document              controllers.DocumentController.sendDocument()
 + nocsrf
-POST    /api/approve-document           controllers.DocumentController.approveDocument
+POST    /api/approve-document           controllers.DocumentController.approveDocument()
 + nocsrf
-POST    /api/reject-document            controllers.DocumentController.rejectDocument
+POST    /api/reject-document            controllers.DocumentController.rejectDocument()
+GET     /api/get-document-history       controllers.DocumentController.getDocumentHistory(id: Int)
+
+# Exam
+
+GET     /api/get-exam-schedule          controllers.ExamController.getExamSchedule
++ nocsrf
+POST    /api/set-exam-schedule          controllers.ExamController.setExamSchedule()
++ nocsrf
+DELETE  /api/delete-exam-schedule       controllers.ExamController.deleteExamSchedule()
+GET     /api/get-examiner-schedule      controllers.ExamController.getExaminerSchedule
++ nocsrf
+POST    /api/set-exam-result            controllers.ExamController.setExamResult()
+GET     /api/get-exam-result            controllers.ExamController.getExamResult
 
 # Data synchronization
 
 + nocsrf
-POST    /sync/insert                    controllers.DataSyncController.insert
+POST    /sync/insert                    controllers.DataSyncController.insert()
 + nocsrf
-POST    /sync/update                    controllers.DataSyncController.update
+POST    /sync/update                    controllers.DataSyncController.update()
 + nocsrf
-POST    /sync/write                     controllers.DataSyncController.write
+POST    /sync/write                     controllers.DataSyncController.write()
 GET     /sync/read                      controllers.DataSyncController.read
 
 # For testing purposes

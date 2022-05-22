@@ -109,6 +109,19 @@ class Environment @Inject() (
 
   // val blockingOpsEc: ExecutionContext = actorSystem.dispatchers.lookup("contexts.blockingOps")
 
+  case object EntityTemplateNotFound extends Exception
+
+  def fGetEntityTemplate(name: String): Future[String] = {
+    val qGetEntityTemplate =
+      sql"""
+        select template from "entity_template" where name = $name
+         """.as[String].headOption
+
+    db run qGetEntityTemplate map {
+      case Some(template) => template
+      case None => throw EntityTemplateNotFound
+    }
+  }
 
   def getUsers: Future[Seq[String]] =
     db run {
@@ -142,7 +155,7 @@ class Environment @Inject() (
     email: String,
     birthDate: Option[Date],
     password: String
-  ): Future[UUID] = {
+  ): Future[Int] = {
     def fCheckUserExistence: Future[(Boolean, Boolean)] = {
       val qCheckUserExistence =
         sql"""
@@ -173,7 +186,8 @@ class Environment @Inject() (
               birth_date,
               password,
               created,
-              updated
+              updated,
+              external_id
             ) values (
               $username,
               $firstName,
@@ -184,7 +198,8 @@ class Environment @Inject() (
               $birthDate,
               $password,
               $created,
-              $updated
+              $updated,
+              ${UUID.randomUUID}
             )
             returning id
              """.as[Int].head
@@ -193,14 +208,12 @@ class Environment @Inject() (
             userId =>
               sql"""
                 insert into "user_to_role" (
-                  id,
                   user_id,
                   role_id,
                   created,
                   updated
                 )
                 select
-                  ${UUID.randomUUID},
                   $userId,
                   r.id,
                   $created,
@@ -208,7 +221,7 @@ class Environment @Inject() (
                 from "role" r
                 where r.name = ${Settings.defaultRoleName}
                 returning user_id
-             """.as[UUID].head
+             """.as[Int].head
           }
         }
         db.run(qCreateUser.transactionally)

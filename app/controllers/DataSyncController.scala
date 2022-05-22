@@ -21,19 +21,7 @@ class DataSyncController @Inject() (
 
   import environment._
 
-  case object EntityTemplateNotFound extends Exception
 
-  def fGetEntityTemplate(name: String): Future[String] = {
-    val qGetEntityTemplate =
-      sql"""
-        select template from "entity_template" where name = $name
-         """.as[String].headOption
-
-    db run qGetEntityTemplate map {
-      case Some(template) => template
-      case None => throw EntityTemplateNotFound
-    }
-  }
 
   def insert: Action[AnyContent] = externalApplicationSecuredAction async { implicit request =>
     val fMessage = Future {
@@ -122,9 +110,9 @@ class DataSyncController @Inject() (
     val fResult = for {
       (header, message) <- fMessage
       template <- fGetEntityTemplate(header)
+      deleteQuery = EntityTemplateProcessor.delete(message, template)
       insertQuery = EntityTemplateProcessor.insert(message, template)
-      updateQuery = EntityTemplateProcessor.update(message, template)
-      _ <- db run (insertQuery andThen updateQuery)
+      _ <- db run (deleteQuery >> insertQuery).transactionally
     } yield Ok
 
     fResult recover {

@@ -16,6 +16,12 @@ libraryDependencies ++= Seq (
   "com.chuusai" %% "shapeless" % "2.3.3"
 )
 
+val AkkaVersion = "2.6.18"
+libraryDependencies ++= Seq(
+  "com.lightbend.akka" %% "akka-stream-alpakka-amqp" % "3.0.4",
+  "com.typesafe.akka" %% "akka-stream" % AkkaVersion
+)
+
 // Adds additional packages into Twirl
 //TwirlKeys.templateImports += "com.example.controllers._"
 

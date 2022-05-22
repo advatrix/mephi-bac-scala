@@ -13,8 +13,8 @@ import scala.util.parsing.combinator._
 
 object FieldType extends Enumeration {
   type FieldType = Value
-  val IntFieldType, OptIntFieldType, BoolFieldType, OptBoolFieldType,
-  FloatFieldType, OptFloatFieldType, UuidFieldType, OptUuidFieldType = Value
+  val IntFieldType, OptIntFieldType, BoolFieldType, OptBoolFieldType, FloatFieldType, OptFloatFieldType, UuidFieldType,
+  OptUuidFieldType, StringFieldType, OptStringFieldType = Value
 }
 
 import FieldType._
@@ -31,18 +31,19 @@ case class BadDataMessageException(msg: String) extends Exception
 
 
 class EntityParser extends JavaTokenParsers {
-  def template: Parser[EntityTemplate] = "table"~>stringLiteral~"{"~repsep(field, ",")<~"}" ^^ {
+  def template: Parser[EntityTemplate] = "table"~>tableName~"{"~repsep(field, ",")<~"}" ^^ {
     case tableName~_~fields =>
       EntityTemplate(tableName, fields)
   }
+  def tableName: Parser[String] = "[a-zA-Z_]+".r
   def fieldName: Parser[String] = "\""~>"[a-zA-Z0-9а-яА-Я_]+".r<~"\""
-  def columnName: Parser[String] = "[a-zA-Z0-9]".r
+  def columnName: Parser[String] = "[a-zA-Z0-9_]+".r
   def field: Parser[FieldDescription] = fieldName~"->"~columnName~fieldType~opt("(?i)pk".r) ^^ {
     case fieldName~_~columnName~columnType~oIsPk =>
       FieldDescription(fieldName, columnName, columnType, oIsPk.nonEmpty)
   }
   def fieldType: Parser[FieldType] =
-    int | optInt | bool | optBool | float | optFloat | uuid | optUuid
+    int | optInt | bool | optBool | float | optFloat | uuid | optUuid | string | optString
   def int: Parser[FieldType] = "Int" ^^ (_ => IntFieldType)
   def optInt: Parser[FieldType] = "Option[Int]" ^^ (_ => OptIntFieldType)
   def bool: Parser[FieldType] = "Boolean" ^^ (_ => BoolFieldType)
@@ -51,7 +52,8 @@ class EntityParser extends JavaTokenParsers {
   def optFloat: Parser[FieldType] = "Option[Float]" ^^ (_ => OptFloatFieldType)
   def uuid: Parser[FieldType] = "UUID" ^^ (_ => UuidFieldType)
   def optUuid: Parser[FieldType] = "Option[UUID]" ^^ (_ => OptUuidFieldType)
-
+  def string: Parser[FieldType] = "String" ^^ (_ => StringFieldType)
+  def optString: Parser[FieldType] = "Option[String]" ^^ (_ => OptStringFieldType)
 }
 
 object EntityTemplateProcessor {
@@ -70,13 +72,15 @@ object EntityTemplateProcessor {
 
   private def convert(o: JsValue, t: FieldType): String = t match {
     case IntFieldType => o.as[Int].toString
-    case OptIntFieldType => o.asOpt[Int] map optionToSqlNull
+    case OptIntFieldType => optionToSqlNull(o.asOpt[Int])
     case FloatFieldType => o.as[Float].toString
-    case OptFloatFieldType => o.asOpt[Float] map optionToSqlNull
+    case OptFloatFieldType => optionToSqlNull(o.asOpt[Float])
     case BoolFieldType => o.as[Boolean].toString
-    case OptBoolFieldType => o.asOpt[Boolean] map optionToSqlNull
+    case OptBoolFieldType => optionToSqlNull(o.asOpt[Boolean])
     case UuidFieldType => s"'${o.as[UUID]}'"
-    case OptUuidFieldType => o.asOpt[UUID] match { case Some(v) => s"'$v'"; case None => "null"}
+    case OptUuidFieldType => o.asOpt[UUID] match { case Some(v) => s"'$v'"; case None => "null" }
+    case StringFieldType => s"'${o.as[String]}'"
+    case OptStringFieldType => o.asOpt[String] match { case Some(v) => s"'$v'"; case None => "null" }
   }
 
   private val sqlKeywords = Set(
@@ -115,15 +119,12 @@ object EntityTemplateProcessor {
 
     val (fieldsQueryPart, valuesQueryPart) = insertQueryParts
 
-    val query =
-      sqlu"""
+    sqlu"""
       insert into #$tableName
       #$fieldsQueryPart
       values
       #$valuesQueryPart
-       """
-
-    query
+    """
   }
 
   def update(message: JsObject, template: String): DBIO[Int] =
@@ -169,9 +170,8 @@ object EntityTemplateProcessor {
 
     sqlu"""
       update #$tableName
-      #$values
-      where
-      #$conditions
+      set #$values
+      where #$conditions
     """
   }
 
@@ -239,7 +239,7 @@ object EntityTemplateProcessor {
     sql"""
       select #$columns
       from #$tableName
-      where $conditions
+      where #$conditions
     """.as[Map[String, String]]
   }
 }

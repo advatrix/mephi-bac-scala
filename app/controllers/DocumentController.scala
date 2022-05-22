@@ -170,6 +170,7 @@ class DocumentController @Inject() (
             join "document_template" dt on dt.id = d.template_id
             join "user" u on u.id = d.user_id
             join "document_status" ds on ds.id = d.status_id
+            where d.id = $documentId
              """.as[(String, String, Int, String, Option[String], Option[String], Timestamp, Timestamp)].head
 
         db run qGetDocumentById
@@ -328,7 +329,7 @@ class DocumentController @Inject() (
               from "document_status" ds_new
               where ds_new.name = $newStatus
             ) s
-            where d.id = $documentId and d.user_id = $userId
+            where d.id = $documentId
             returning d.id
          """.as[Int].head
 
@@ -367,7 +368,6 @@ class DocumentController @Inject() (
       context <- fGetDocumentContext(userId)
       document = DocumentTemplateProcessor.createEmptyDocument(template, context)
       id <- fCreateDocument(userId, templateId)
-      _ = println(document, document.toString)
       count <- fSaveDocument(userId, id, document)
     } yield Ok {
       Json.obj(
@@ -412,6 +412,7 @@ class DocumentController @Inject() (
     fResult recover {
       case ex: SQLException => InternalServerError(ex.toString)
       case PermissionDeniedException => Forbidden
+      case _: MatchError => Forbidden("Illegal transition")
       case ex: DocumentValidationException => BadRequest(ex.toString)
       case _: NoSuchElementException => BadRequest("unable to save")
       case ex => BadRequest(ex.toString)
@@ -434,14 +435,12 @@ class DocumentController @Inject() (
       sent <-
         if (permission) fSendDocument(userId, documentId)
         else Future.failed(PermissionDeniedException)
-    } yield sent match {
-      case 1 => Ok
-      case _ => InternalServerError("unable to send")
-    }
+    } yield Ok
 
     fResult recover {
       case ex: SQLException => InternalServerError(ex.toString)
       case PermissionDeniedException => Forbidden
+      case _: MatchError => Forbidden("Illegal transition")
       case ex => BadRequest(ex.toString)
     }
   }
@@ -516,6 +515,53 @@ class DocumentController @Inject() (
     } yield Ok {
       Json.arr(result.map(_.toString))
     } as JSON
+
+    fResult recover {
+      case ex: SQLException =>
+        InternalServerError(ex.toString)
+      case ex =>
+        BadRequest(ex.toString)
+    }
+  }
+
+  def getDocumentHistory(id: Int): Action[AnyContent] = securedAction async { implicit request =>
+    val userId = request.userId
+
+    def fGetDocumentHistory = {
+      val qGetDocumentHistory =
+        sql"""
+          select
+            dh.old_status_id,
+            dh.new_status_id,
+            dh.comment,
+            dh.author_id,
+            dh.time
+          from "document_history" dh
+          where dh.document_id = $id
+           """.as[(Option[Int], Int, Option[String], Int, Option[Timestamp])]
+
+      db run qGetDocumentHistory
+    }
+
+    val fResult = for {
+      permission <- fCheckDocumentPermission(userId, id, Read)
+      history <-
+        if (permission) fGetDocumentHistory
+        else Future.failed(PermissionDeniedException)
+    } yield Ok {
+      Json.toJson(
+        history map {
+          case (oldStatus, newStatus, comment, author, time) =>
+            Json.obj (
+              "old_status" -> oldStatus,
+              "new_status" -> newStatus,
+              "comment" -> comment,
+              "author" -> author,
+              "time" -> time.map(_.toLocalDateTime)
+            )
+        }
+      )
+    }
 
     fResult recover {
       case ex: SQLException =>

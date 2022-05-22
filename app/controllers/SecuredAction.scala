@@ -62,22 +62,15 @@ class SecuredAction @Inject() (
       val qCheckPermission =
         sql"""
           select exists(
-            select *
-            from "user_to_role" utr
-            join "permission_to_role" ptr on ptr.role_id = utr.role_id
-            join "permission_to_action" pta on pta.permission_id = ptr.permission_id
-            join "action" a on a.id = pta.action_id
-            where utr.user_id = $userId
-              and a.url = $url
+            select * from "action_permission_to_user"
+            where user_id = $userId and url = $url
           )
            """.as[Boolean].head
 
       db run qCheckPermission map {
         case true =>
-          println(true)
           ()
         case false =>
-          println(false)
           throw PermissionDeniedException
       }
     }

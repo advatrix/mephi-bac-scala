@@ -228,9 +228,25 @@ object DocumentParsing {
 
   sealed trait Field { val name: Option[String] }
   // name is None if field is element of array
-  case class UnitField(name: Option[String], fieldType: UnitType.UnitType, required: Boolean, settings: Option[UnitFieldSettings]) extends Field
-  case class ArrayField(name: Option[String], required: Boolean, settings: Option[ArrayFieldSettings], elements: Option[Field]) extends Field
-  case class ObjectField(name: Option[String], required: Boolean, settings: Option[ObjectFieldSettings]) extends Field
+  case class UnitField(
+    name: Option[String],
+    fieldType: UnitType.UnitType,
+    required: Boolean,
+    settings: Option[UnitFieldSettings]
+  ) extends Field
+
+  case class ArrayField(
+    name: Option[String],
+    required: Boolean,
+    settings: Option[ArrayFieldSettings],
+    elements: Option[Field]
+  ) extends Field
+
+  case class ObjectField(
+    name: Option[String],
+    required: Boolean,
+    settings: Option[ObjectFieldSettings]
+  ) extends Field
 
   case class Template(name: String, fields: List[Field])
 }
@@ -298,7 +314,7 @@ class DocumentParser extends JavaTokenParsers with PackratParsers {
       throw DocumentParsingException(s"in array field brackets don\'t match: $oBracket and $cBracket")
   }
 
-  lazy val arrayElements: PackratParser[Field] = " of "~>(
+  lazy val arrayElements: PackratParser[Field] = "of"~>(
     arrayFieldDefinition | objectFieldDefinition | unitFieldDefinition
   ) ^^ {
     case "array"~(oElement: Option[Field])~(oRequired: Option[String])~(oArrayFieldSettings: Option[ArrayFieldSettings]) =>
@@ -399,6 +415,7 @@ object DocumentTemplateProcessor {
     def parse(input: String): Template = parseAll(template, input) match {
       case Success(result, _) => result
       case Failure(msg, next) => throw DocumentParsingException(s"$msg $next")
+      case Error(msg, next) => throw DocumentParsingException(s"$msg $next")
     }
   }
 
